@@ -13,43 +13,51 @@ workflows:
           echo "✅ Unzip complete. Contents:"
           ls -R project_unzipped
 
-      - name: Locate Flutter project
+      - name: Locate and enter Flutter project
         script: |
           echo "🔍 Searching for pubspec.yaml inside unzipped folder..."
-          FOUND_DIR=$(find project_unzipped -type f -name "pubspec.yaml" | head -n 1)
-          if [ -z "$FOUND_DIR" ]; then
-            echo "❌ No Flutter project found after unzip!"
-            echo "📦 Directory structure after unzip:"
-            ls -R project_unzipped
+          FOUND_FILE=$(find project_unzipped -type f -name "pubspec.yaml" | head -n 1)
+          if [ -z "$FOUND_FILE" ]; then
+            echo "❌ pubspec.yaml not found inside unzipped folder."
             exit 1
           fi
-          PROJECT_DIR=$(dirname "$FOUND_DIR")
-          echo "✅ Flutter project found at: $PROJECT_DIR"
+          PROJECT_DIR=$(dirname "$FOUND_FILE")
+          echo "✅ Found Flutter project at: $PROJECT_DIR"
           cd "$PROJECT_DIR"
-          echo "📁 Current directory:"
+          echo "📁 Now inside:"
           pwd
           ls -la
+          echo "💾 Saving project path for next steps..."
+          echo "PROJECT_DIR=$PROJECT_DIR" >> $CM_ENV_PATH
+
       - name: Install Flutter dependencies
         script: |
-          echo "🚀 Running flutter pub get..."
+          echo "🚀 Installing Flutter dependencies..."
+          cd "$PROJECT_DIR"
           flutter pub get
+
       - name: Build Android release APK
         script: |
           echo "🏗️ Building release APK..."
+          cd "$PROJECT_DIR"
           flutter build apk --release
           mkdir -p $CM_BUILD_DIR/build_outputs
           cp build/app/outputs/flutter-apk/app-release.apk $CM_BUILD_DIR/build_outputs/DIA_Register_release.apk
+
       - name: Build iOS release IPA (optional)
         script: |
+          cd "$PROJECT_DIR"
           if [ -d "ios" ]; then
             echo "🍏 Building iOS IPA..."
             flutter build ios --release --no-codesign
           else
             echo "ℹ️ Skipping iOS build — no ios folder detected."
           fi
+
     artifacts:
       - build_outputs/*.apk
       - build/ios/ipa/*.ipa
+
 
 
 
