@@ -13,7 +13,7 @@ workflows:
           echo "✅ Unzip complete. Contents:"
           ls -R project_unzipped
 
-      - name: Locate and enter Flutter project
+      - name: Locate Flutter project
         script: |
           echo "🔍 Searching for pubspec.yaml inside unzipped folder..."
           FOUND_FILE=$(find project_unzipped -type f -name "pubspec.yaml" | head -n 1)
@@ -23,12 +23,12 @@ workflows:
           fi
           PROJECT_DIR=$(dirname "$FOUND_FILE")
           echo "✅ Found Flutter project at: $PROJECT_DIR"
+          echo "PROJECT_DIR=$PROJECT_DIR" >> $BASH_ENV
+          source $BASH_ENV
           cd "$PROJECT_DIR"
           echo "📁 Now inside:"
           pwd
           ls -la
-          echo "💾 Saving project path for next steps..."
-          echo "PROJECT_DIR=$PROJECT_DIR" >> $CM_ENV_PATH
 
       - name: Install Flutter dependencies
         script: |
