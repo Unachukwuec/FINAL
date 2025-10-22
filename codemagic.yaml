@@ -1,42 +1,49 @@
 workflows:
-  dia_guest_register_workflow:
-    name: DIA Guest & Members Register Build
+  dia_register_build:
+    name: DIA Register Auto Build
     max_build_duration: 60
     instance_type: mac_mini_m1
 
     environment:
       flutter: stable
       xcode: latest
-      cocoapods: default
-      vars:
-        PROJECT_ZIP: "dia_guest_register_codermagic_ready.zip"
 
     scripts:
-      - name: Unzip project
+      - name: Locate Flutter project
         script: |
-          echo "📦 Extracting Flutter project..."
+          echo "🔍 Searching for pubspec.yaml..."
           cd $CM_BUILD_DIR
-          unzip -o $PROJECT_ZIP -d project_root
-          cd project_root
-          PROJECT_DIR=$(find . -maxdepth 2 -type f -name "pubspec.yaml" -exec dirname {} \;)
+          PROJECT_DIR=$(find . -maxdepth 3 -type f -name "pubspec.yaml" -exec dirname {} \; | head -n 1)
+          echo "📁 Found project at: $PROJECT_DIR"
+          if [ -z "$PROJECT_DIR" ]; then
+            echo "❌ No Flutter project found!"
+            exit 1
+          fi
           echo $PROJECT_DIR > /tmp/flutter_project_path.txt
+
+      - name: Repair Flutter structure (safely)
+        script: |
+          PROJECT_DIR=$(cat /tmp/flutter_project_path.txt)
+          cd $CM_BUILD_DIR/$PROJECT_DIR
+          echo "🛠️ Running flutter create --overwrite ..."
+          flutter create . --overwrite
 
       - name: Install Flutter dependencies
         script: |
-          echo "📦 Installing Flutter dependencies..."
           PROJECT_DIR=$(cat /tmp/flutter_project_path.txt)
-          cd $CM_BUILD_DIR/project_root/$PROJECT_DIR
+          cd $CM_BUILD_DIR/$PROJECT_DIR
+          echo "📦 Installing dependencies ..."
           flutter pub get
 
       - name: Build Android release APK
         script: |
-          echo "🏗️ Building DIA Guest & Members Register release APK..."
           PROJECT_DIR=$(cat /tmp/flutter_project_path.txt)
-          cd $CM_BUILD_DIR/project_root/$PROJECT_DIR
+          cd $CM_BUILD_DIR/$PROJECT_DIR
+          echo "🏗️ Building DIA Register release APK ..."
           flutter build apk --release
           mkdir -p $CM_BUILD_DIR/build_outputs
           cp build/app/outputs/flutter-apk/app-release.apk \
-             $CM_BUILD_DIR/build_outputs/DIA_Guest_Register_v1.0.apk
+             $CM_BUILD_DIR/build_outputs/DIA_Register_v1.0.apk
 
     artifacts:
       - build_outputs/**/*.apk
@@ -44,7 +51,8 @@ workflows:
     publishing:
       email:
         recipients:
-          - your-email@example.com  # Replace with your actual email
+          - your-email@example.com  # ← replace with your email
+
 
 
 
