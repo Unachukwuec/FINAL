@@ -6,7 +6,7 @@ workflows:
       xcode: latest
 
     scripts:
-      - name: Unzip Flutter project
+      - name: Unzip and locate Flutter project
         script: |
           echo "🔧 Unzipping Flutter project..."
           unzip dia_guest_register_codermagic_ready.zip -d project_root
@@ -15,32 +15,39 @@ workflows:
           PROJECT_DIR=$(find . -type f -name "pubspec.yaml" -exec dirname {} \; | head -n 1)
           echo "📂 Found Flutter project directory: $PROJECT_DIR"
           cd "$PROJECT_DIR"
+          echo $PROJECT_DIR > /tmp/flutter_project_path.txt
           pwd
           ls -la
 
       - name: Install Flutter dependencies
         script: |
           echo "📦 Installing Flutter dependencies..."
+          PROJECT_DIR=$(cat /tmp/flutter_project_path.txt)
+          cd "project_root/$PROJECT_DIR"
           flutter pub get
 
       - name: Build Android release APK
         script: |
           echo "🏗️ Building DIA Guest & Members Register release APK..."
+          PROJECT_DIR=$(cat /tmp/flutter_project_path.txt)
+          cd "project_root/$PROJECT_DIR"
           flutter build apk --release
           echo "📦 Renaming APK..."
-          mkdir -p ../../build_outputs
-          cp build/app/outputs/flutter-apk/app-release.apk ../../build_outputs/DIA_Guest_Register_v1.0.apk
+          mkdir -p ../../../build_outputs
+          cp build/app/outputs/flutter-apk/app-release.apk ../../../build_outputs/DIA_Guest_Register_v1.0.apk
 
       - name: Build iOS release IPA
         script: |
           echo "🍏 Building DIA Guest & Members Register release IPA..."
+          PROJECT_DIR=$(cat /tmp/flutter_project_path.txt)
+          cd "project_root/$PROJECT_DIR"
           cd ios
           pod install --repo-update
           cd ..
           flutter build ipa --release --no-codesign
           echo "📦 Renaming IPA..."
-          mkdir -p ../../build_outputs
-          cp build/ios/ipa/*.ipa ../../build_outputs/DIA_Guest_Register_v1.0.ipa
+          mkdir -p ../../../build_outputs
+          cp build/ios/ipa/*.ipa ../../../build_outputs/DIA_Guest_Register_v1.0.ipa
 
     artifacts:
       - build_outputs/DIA_Guest_Register_v1.0.apk
