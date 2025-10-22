@@ -1,62 +1,75 @@
 workflows:
   dia_register_build:
-    name: DIA Register Build
+    name: DIA Register Single-Step Build (Android)
     max_build_duration: 60
     environment:
       flutter: stable
 
     scripts:
-      - name: Unzip Flutter project
+      - name: Unzip, detect, repair, deps & build (all-in-one)
         script: |
-          echo "📦 Unzipping dia_register_fixed.zip..."
-          unzip -o dia_register_fixed.zip -d project_unzipped
-          echo "✅ Unzip complete. Contents:"
-          ls -R project_unzipped
+          set -euo pipefail
+          echo "📦 Starting all-in-one build step..."
 
-      - name: Locate Flutter project
-        script: |
-          echo "🔍 Searching for pubspec.yaml inside unzipped folder..."
-          FOUND_FILE=$(find project_unzipped -type f -name "pubspec.yaml" | head -n 1)
+          # 1) make sure ZIP exists
+          ZIPNAME="dia_register_fixed.zip"
+          if [ ! -f "$ZIPNAME" ]; then
+            echo "❗ ZIP $ZIPNAME not found in repo root. Repo contains:"
+            ls -la
+            exit 1
+          fi
+
+          # 2) unzip into project_unzipped (overwrite)
+          rm -rf project_unzipped
+          mkdir -p project_unzipped
+          echo "🔧 Unzipping $ZIPNAME -> project_unzipped/"
+          unzip -o "$ZIPNAME" -d project_unzipped
+          echo "✅ Unzip done. Contents (top-level):"
+          ls -la project_unzipped
+
+          # 3) find pubspec.yaml (no assumptions about nesting)
+          FOUND_FILE=$(find project_unzipped -type f -name "pubspec.yaml" | head -n 1 || true)
           if [ -z "$FOUND_FILE" ]; then
-            echo "❌ pubspec.yaml not found inside unzipped folder."
+            echo "❌ pubspec.yaml NOT FOUND inside unzipped zip. Full tree:"
+            ls -R project_unzipped
             exit 1
           fi
           PROJECT_DIR=$(dirname "$FOUND_FILE")
-          echo "✅ Found Flutter project at: $PROJECT_DIR"
-          echo "PROJECT_DIR=$PROJECT_DIR" >> $BASH_ENV
-          source $BASH_ENV
+          echo "📁 Detected Flutter project directory: $PROJECT_DIR"
+
+          # 4) cd into project folder
           cd "$PROJECT_DIR"
-          echo "📁 Now inside:"
+          echo "📂 Current working directory now:"
           pwd
           ls -la
 
-      - name: Install Flutter dependencies
-        script: |
-          echo "🚀 Installing Flutter dependencies..."
-          cd "$PROJECT_DIR"
+          # 5) repair project native folders (fix Gradle issues)
+          echo "🛠️ Running: flutter create . --overwrite  (repairs android/ios)"
+          flutter create . --overwrite || true
+
+          # 6) get dependencies
+          echo "📦 Running flutter pub get ..."
           flutter pub get
 
-      - name: Build Android release APK
-        script: |
+          # 7) build release APK
           echo "🏗️ Building release APK..."
-          cd "$PROJECT_DIR"
           flutter build apk --release
-          mkdir -p $CM_BUILD_DIR/build_outputs
-          cp build/app/outputs/flutter-apk/app-release.apk $CM_BUILD_DIR/build_outputs/DIA_Register_release.apk
 
-      - name: Build iOS release IPA (optional)
-        script: |
-          cd "$PROJECT_DIR"
-          if [ -d "ios" ]; then
-            echo "🍏 Building iOS IPA..."
-            flutter build ios --release --no-codesign
-          else
-            echo "ℹ️ Skipping iOS build — no ios folder detected."
+          # 8) copy artifact to top-level build_outputs (Codemagic picks from repo root)
+          mkdir -p $CM_BUILD_DIR/build_outputs
+          APK_SRC="build/app/outputs/flutter-apk/app-release.apk"
+          if [ ! -f "$APK_SRC" ]; then
+            echo "❌ Expected APK not found at $APK_SRC"
+            echo "Build dir listing:"
+            ls -R build || true
+            exit 1
           fi
+          cp "$APK_SRC" "$CM_BUILD_DIR/build_outputs/DIA_Register_release.apk"
+          echo "✅ APK copied to build_outputs/DIA_Register_release.apk"
 
     artifacts:
       - build_outputs/*.apk
-      - build/ios/ipa/*.ipa
+
 
 
 
