@@ -12,9 +12,6 @@ workflows:
         PROJECT_ZIP: "dia_guest_register_codermagic_ready.zip"
 
     scripts:
-      - name: Install unzip tool
-        script: sudo apt-get update && sudo apt-get install -y unzip
-
       - name: Unzip project
         script: |
           echo "📦 Extracting Flutter project..."
@@ -47,6 +44,7 @@ workflows:
     publishing:
       email:
         recipients:
-          - your-email@example.com   # replace with your email
+          - your-email@example.com  # Replace with your actual email
+
 
 
