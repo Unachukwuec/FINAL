@@ -1,57 +1,48 @@
 workflows:
   dia_register_build:
-    name: DIA Register Auto Build
+    name: DIA Register Auto Project Detection
     max_build_duration: 60
-    instance_type: mac_mini_m1
-
     environment:
       flutter: stable
-      xcode: latest
-
+      vars:
+        PROJECT_NAME: "DIA Register"
+        FLUTTER_ROOT: "/Users/builder/clone"
     scripts:
       - name: Locate Flutter project
         script: |
-          echo "🔍 Searching for pubspec.yaml..."
-          cd $CM_BUILD_DIR
-          PROJECT_DIR=$(find . -maxdepth 3 -type f -name "pubspec.yaml" -exec dirname {} \; | head -n 1)
-          echo "📁 Found project at: $PROJECT_DIR"
-          if [ -z "$PROJECT_DIR" ]; then
+          echo "🔍 Searching for pubspec.yaml up to 6 levels deep..."
+          FOUND_DIR=$(find . -maxdepth 6 -type f -name "pubspec.yaml" -exec dirname {} \; | head -n 1)
+          if [ -z "$FOUND_DIR" ]; then
             echo "❌ No Flutter project found!"
             exit 1
+          else
+            echo "✅ Flutter project found at: $FOUND_DIR"
+            cd "$FOUND_DIR"
           fi
-          echo $PROJECT_DIR > /tmp/flutter_project_path.txt
-
-      - name: Repair Flutter structure (safely)
-        script: |
-          PROJECT_DIR=$(cat /tmp/flutter_project_path.txt)
-          cd $CM_BUILD_DIR/$PROJECT_DIR
-          echo "🛠️ Running flutter create --overwrite ..."
-          flutter create . --overwrite
-
       - name: Install Flutter dependencies
         script: |
-          PROJECT_DIR=$(cat /tmp/flutter_project_path.txt)
-          cd $CM_BUILD_DIR/$PROJECT_DIR
-          echo "📦 Installing dependencies ..."
           flutter pub get
-
       - name: Build Android release APK
         script: |
-          PROJECT_DIR=$(cat /tmp/flutter_project_path.txt)
-          cd $CM_BUILD_DIR/$PROJECT_DIR
-          echo "🏗️ Building DIA Register release APK ..."
           flutter build apk --release
           mkdir -p $CM_BUILD_DIR/build_outputs
-          cp build/app/outputs/flutter-apk/app-release.apk \
-             $CM_BUILD_DIR/build_outputs/DIA_Register_v1.0.apk
-
+          cp build/app/outputs/flutter-apk/app-release.apk $CM_BUILD_DIR/build_outputs/DIA_Register_release.apk
+      - name: Build iOS release IPA (optional)
+        script: |
+          if [ -d "ios" ]; then
+            echo "🍏 Building iOS IPA..."
+            flutter build ios --release --no-codesign
+          else
+            echo "ℹ️ Skipping iOS build — no ios folder detected."
+          fi
     artifacts:
-      - build_outputs/**/*.apk
-
+      - build_outputs/*.apk
+      - build/ios/ipa/*.ipa
     publishing:
       email:
         recipients:
-          - your-email@example.com  # ← replace with your email
+          - your-email@example.com
+
 
 
 
