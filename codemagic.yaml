@@ -1,68 +1,52 @@
 workflows:
-  auto_unzip_and_build:
-    name: DIA Guest & Members Register (Auto Build for Android + iOS)
+  dia_guest_register_workflow:
+    name: DIA Guest & Members Register Build
+    max_build_duration: 60
+    instance_type: mac_mini_m1
+
     environment:
       flutter: stable
       xcode: latest
+      cocoapods: default
+      vars:
+        PROJECT_ZIP: "dia_guest_register_codermagic_ready.zip"
 
     scripts:
-      - name: Unzip and locate Flutter project
-        script: |
-          echo "🔧 Unzipping Flutter project..."
-          unzip dia_guest_register_codermagic_ready.zip -d project_root
-          echo "✅ Unzip complete. Detecting Flutter project folder..."
-          cd project_root
-          PROJECT_DIR=$(find . -type f -name "pubspec.yaml" -exec dirname {} \; | head -n 1)
-          echo "📂 Found Flutter project directory: $PROJECT_DIR"
-          cd "$PROJECT_DIR"
-          echo $PROJECT_DIR > /tmp/flutter_project_path.txt
-          pwd
-          ls -la
+      - name: Install unzip tool
+        script: sudo apt-get update && sudo apt-get install -y unzip
 
-      - name: Repair Flutter project structure (fix Gradle)
+      - name: Unzip project
         script: |
-          echo "🧩 Repairing Flutter project structure..."
-          PROJECT_DIR=$(cat /tmp/flutter_project_path.txt)
-          cd "project_root/$PROJECT_DIR"
-          flutter create . --overwrite
-          echo "✅ Flutter project structure repaired."
+          echo "📦 Extracting Flutter project..."
+          cd $CM_BUILD_DIR
+          unzip -o $PROJECT_ZIP -d project_root
+          cd project_root
+          PROJECT_DIR=$(find . -maxdepth 2 -type f -name "pubspec.yaml" -exec dirname {} \;)
+          echo $PROJECT_DIR > /tmp/flutter_project_path.txt
 
       - name: Install Flutter dependencies
         script: |
           echo "📦 Installing Flutter dependencies..."
           PROJECT_DIR=$(cat /tmp/flutter_project_path.txt)
-          cd "project_root/$PROJECT_DIR"
+          cd $CM_BUILD_DIR/project_root/$PROJECT_DIR
           flutter pub get
 
       - name: Build Android release APK
         script: |
           echo "🏗️ Building DIA Guest & Members Register release APK..."
           PROJECT_DIR=$(cat /tmp/flutter_project_path.txt)
-          cd "project_root/$PROJECT_DIR"
+          cd $CM_BUILD_DIR/project_root/$PROJECT_DIR
           flutter build apk --release
-          echo "📦 Renaming APK..."
-          mkdir -p build_outputs
-          cp build/app/outputs/flutter-apk/app-release.apk build_outputs/DIA_Guest_Register_v1.0.apk
-
-      - name: Build iOS release IPA
-        script: |
-          echo "🍏 Building DIA Guest & Members Register release IPA..."
-          PROJECT_DIR=$(cat /tmp/flutter_project_path.txt)
-          cd "project_root/$PROJECT_DIR"
-          cd ios
-          pod install --repo-update
-          cd ..
-          flutter build ipa --release --no-codesign
-          echo "📦 Renaming IPA..."
-          mkdir -p build_outputs
-          cp build/ios/ipa/*.ipa build_outputs/DIA_Guest_Register_v1.0.ipa
+          mkdir -p $CM_BUILD_DIR/build_outputs
+          cp build/app/outputs/flutter-apk/app-release.apk \
+             $CM_BUILD_DIR/build_outputs/DIA_Guest_Register_v1.0.apk
 
     artifacts:
-      - project_root/**/build_outputs/DIA_Guest_Register_v1.0.apk
-      - project_root/**/build_outputs/DIA_Guest_Register_v1.0.ipa
+      - build_outputs/**/*.apk
 
     publishing:
       email:
         recipients:
-          - your_email@example.com
+          - your-email@example.com   # replace with your email
+
 
