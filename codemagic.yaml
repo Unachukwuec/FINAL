@@ -4,15 +4,23 @@ workflows:
     max_build_duration: 60
     environment:
       flutter: stable
+
     scripts:
+      - name: Unzip Flutter project
+        script: |
+          echo "📦 Unzipping dia_register_fixed.zip..."
+          unzip -o dia_register_fixed.zip -d project_unzipped
+          echo "✅ Unzip complete. Contents:"
+          ls -R project_unzipped
+
       - name: Locate Flutter project
         script: |
-          echo "🔍 Searching for pubspec.yaml up to 8 levels deep..."
-          FOUND_DIR=$(find . -type f -name "pubspec.yaml" | head -n 1)
+          echo "🔍 Searching for pubspec.yaml inside unzipped folder..."
+          FOUND_DIR=$(find project_unzipped -type f -name "pubspec.yaml" | head -n 1)
           if [ -z "$FOUND_DIR" ]; then
-            echo "❌ No Flutter project found!"
-            echo "📦 Repository structure:"
-            ls -R .
+            echo "❌ No Flutter project found after unzip!"
+            echo "📦 Directory structure after unzip:"
+            ls -R project_unzipped
             exit 1
           fi
           PROJECT_DIR=$(dirname "$FOUND_DIR")
@@ -42,6 +50,7 @@ workflows:
     artifacts:
       - build_outputs/*.apk
       - build/ios/ipa/*.ipa
+
 
 
 
